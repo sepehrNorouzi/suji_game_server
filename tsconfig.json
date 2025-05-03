@@ -15,5 +15,5 @@
   },
   "include": [
     "src"
-  ]
+,   "src/utils/SudokoGenerator.ts"  ]
 }

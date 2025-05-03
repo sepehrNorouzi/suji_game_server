@@ -1,10 +1,13 @@
 export class SudokuGenerator {
     // Constants
-    private static readonly EMPTY_CELL = -1;
+    static readonly EMPTY_CELL = -1;
     private static readonly GRID_SIZE = 9;
     private static readonly BOX_SIZE = 3;
-    private static readonly BOARD_SIZE = 81; // 9x9 = 81 cells
+    static readonly BOARD_SIZE = 81; // 9x9 = 81 cells
+    static readonly MIN_INDEX = 0
     
+    
+
     /**
      * Generates a Sudoku puzzle with a unique solution
      * @param difficulty Level between 0.0 (easiest) and 1.0 (hardest)
