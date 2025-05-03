@@ -1,13 +1,14 @@
 import { Room, Client, Deferred } from "@colyseus/core";
 import { JWT } from "@colyseus/auth"
 import { StateView } from "@colyseus/schema"
+import { v4 as uuidv4 } from 'uuid';
+
 
 import SudokuState from "./schema/SudokuState";
 import { Board } from "./schema/Board";
 import { SudokuGenerator } from "../utils/SudokoGenerator";
 import PlayerState from "./schema/PlayerState";
 import { SudokuUtil } from "../utils/SudokuUtils";
-
 
 export class SudokuRoom extends Room<SudokuState> {
     maxClients = 2;
@@ -43,7 +44,6 @@ export class SudokuRoom extends Room<SudokuState> {
     }
   
     onCreate(options: any) {
-        this.state = new SudokuState();
         this.state.initial_board = new Board(SudokuGenerator.generate(0.5))
         this.onMessage(this.MESSAGES.client.fill, (client, {index, num}) => {
             const is_valid_move = SudokuUtil.isValidMove(index, this.state.initial_board.cells.toArray(), num);
@@ -63,6 +63,10 @@ export class SudokuRoom extends Room<SudokuState> {
         this.state.players.set(client.sessionId, player_state);
         client.view = new StateView();
         client.view.add(player_state);
+        if (this.hasReachedMaxClients()) {
+            this.state.room_uid = uuidv4();
+            // Notify server
+        }
     }
   
     onLeave(client: Client) {

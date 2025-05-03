@@ -5,6 +5,9 @@ import PlayerState from "./PlayerState";
 
 
 class SudokuState extends Schema {
+    @type("string")
+    room_uid: string
+    
     @type(Board)
     initial_board = new Board()
 
