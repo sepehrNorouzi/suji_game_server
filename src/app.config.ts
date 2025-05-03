@@ -6,19 +6,12 @@ import { RedisPresence } from "@colyseus/redis-presence";
 import { logger } from '@colyseus/core'
 
 import { SudokuRoom } from "./rooms/SudokuRoom";
+import RedisConfig  from "./utils/redis"
 
 export default config({
     options: {
-        presence: new RedisPresence({
-            host: "localhost",
-            port: 6379,
-            db: 5
-        }),
-        driver: new RedisDriver({
-            host: "localhost",
-            port: 6379,
-            db: 4
-        }),
+        presence: new RedisPresence(RedisConfig.redis_precense_config()),
+        driver: new RedisDriver(RedisConfig.redis_driver_config()),
         greet: true,
         logger: logger 
     },

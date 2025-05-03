@@ -9,16 +9,18 @@ import PlayerState from "./schema/PlayerState";
 
 
 export class SudokuRoom extends Room<SudokuState> {
-    maxClients = 2;                         
+    maxClients = 2;
+    minClients = 2;
     state = new SudokuState();
 
-    // static async onAuth (token: string, options: any, context: any) {
-    //     if(!process.env.USE_AUTHENTICATION) {
-    //       return true
-    //     }
-    //     const userdata = await JWT.verify(token);
-    //     return userdata;
-    // }
+    static async onAuth (token: string, options: any, context: any) {
+        console.log("HERE", process.env.USE_AUTHENTICATION)
+        if(process.env.USE_AUTHENTICATION === 'false') {
+          return true
+        }
+        const userdata = await JWT.verify(token);
+        return userdata;
+    }
   
     onCreate(options: any) {
         this.state = new SudokuState();
@@ -45,6 +47,7 @@ export class SudokuRoom extends Room<SudokuState> {
   
     onLeave(client: Client) {
       console.log("player left:", client.sessionId);
+      this.allowReconnection(client, 20);
     }
 
 }
