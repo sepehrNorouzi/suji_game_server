@@ -85,7 +85,8 @@ export class SudokuGenerator {
       // Determine how many cells to remove based on difficulty
       // Difficulty 0.0 = ~25 cells removed (easiest)
       // Difficulty 1.0 = ~55 cells removed (hardest)
-      const cellsToRemove = Math.floor(25 + difficulty * 30);
+      // const cellsToRemove = Math.floor(25 + difficulty * 30);
+      const cellsToRemove = 0;
       
       // Create a list of all 81 indices
       const indices = Array.from({ length: this.BOARD_SIZE }, (_, i) => i);
@@ -120,7 +121,7 @@ export class SudokuGenerator {
           puzzle[index] = originalValue;
         }
       }
-      
+
       return puzzle;
     }
     

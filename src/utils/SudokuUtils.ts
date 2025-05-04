@@ -23,4 +23,36 @@ export class SudokuUtil {
         const is_in_range = this.isNumberInRange(num);
         return  is_valid_index && is_cell_empty && is_in_range
     }
+
+    static isSudokuSolved(board: number[]): boolean {
+        if (board.length !== 81) {
+          return false;
+        }
+      
+        const rows: Set<number>[] = Array(9).fill(null).map(() => new Set<number>());
+        const cols: Set<number>[] = Array(9).fill(null).map(() => new Set<number>());
+        const boxes: Set<number>[] = Array(9).fill(null).map(() => new Set<number>());
+      
+        for (let i = 0; i < 81; i++) {
+          const value = board[i];
+          
+          if (value <= 0 || value > 9) {
+            return false;
+          }
+          
+          const row = Math.floor(i / 9);
+          const col = i % 9;
+          const box = Math.floor(row / 3) * 3 + Math.floor(col / 3);
+          
+          if (rows[row].has(value) || cols[col].has(value) || boxes[box].has(value)) {
+            return false;
+          }          
+          rows[row].add(value);
+          cols[col].add(value);
+          boxes[box].add(value);
+        }
+        
+        return true;
+      }
+
 }

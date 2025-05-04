@@ -13,6 +13,9 @@ class SudokuState extends Schema {
 
     @type({ map: PlayerState})
     players = new MapSchema<PlayerState>()
+
+    @type("string")
+    winnnerId: string
 }
 
 export default SudokuState;

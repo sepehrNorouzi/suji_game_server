@@ -12,7 +12,7 @@ import { SudokuUtil } from "../utils/SudokuUtils";
 import { SudokuMatchServer } from "../utils/server_com";
 
 export class SudokuRoomConfig {
-    static readonly DEFAULT_DIFFICULTY = 0.5;
+    static readonly DEFAULT_DIFFICULTY = 0.01;
     static readonly DEFAULT_MAX_CLIENTS = 2;
     static readonly DEFAULT_PATCH_RATE = 20;
     static readonly DEFAULT_DISPOSAL_DELAY = 1000;
@@ -25,13 +25,56 @@ enum GamePhase {
     MATCH_ENDED
 }
 
+class PlayerResultSchema {
+    private board: number[];
+    private result: string;
+    private id: number;
+
+    constructor(board: number[], result: string, id: number) {
+        this.board = board;
+        this.result = result;
+        this.id = id;
+    }
+
+    toJson() {
+        return {
+            id: this.id,
+            board: this.board,
+            result: this.result,
+        }
+    }
+}
+
+class ResultSchema {
+    private winner: number;
+    private playerResults: PlayerResultSchema[];
+    private endTime: number;
+
+    constructor(winner: number, playerResults: PlayerResultSchema[], endTime: number) {
+        this.endTime = endTime;
+        this.winner = winner;
+        this.playerResults = playerResults;
+    }
+
+    toJson() {
+        const playerResultsList: Object[] = [];
+        this.playerResults.forEach(result => {
+            playerResultsList.push(result.toJson())
+        })
+        return {
+            end_time: this.endTime,
+            winner: this.winner,
+            players: playerResultsList
+        }
+    }
+}
+
 export class SudokuRoom extends Room<SudokuState> {
     private isDisposing: boolean = false;
     private readonly DISPOSAL_DELAY = SudokuRoomConfig.DEFAULT_DISPOSAL_DELAY;
     private readonly RECONNECTION_DELAY = SudokuRoomConfig.DEFAULT_RECONNECTION_DELAY;
     private readonly difficulity: number;
     private gameState: GamePhase;
-    state = new SudokuState();
 
     constructor() {
         super()
@@ -39,11 +82,13 @@ export class SudokuRoom extends Room<SudokuState> {
         this.maxClients = SudokuRoomConfig.DEFAULT_MAX_CLIENTS;
         this.patchRate = SudokuRoomConfig.DEFAULT_PATCH_RATE;
         this.gameState = GamePhase.WAITING_FOR_PLAYERS;
+        this.state = new SudokuState();
     }
 
     readonly MESSAGES = {
         client: {
-            fill: "fill"
+            fill: "fill",
+            complete: "complete"
         },
         server: {
             player: {
@@ -52,7 +97,8 @@ export class SudokuRoom extends Room<SudokuState> {
             },
             match: {
                 canceled: 'match_canceled',
-                started: 'match_started'
+                started: 'match_started',
+                completed: 'completed'
             },
             error: 'error'
         }
@@ -89,6 +135,7 @@ export class SudokuRoom extends Room<SudokuState> {
 
     private registerMessageHandlers() {
         this.onMessage(this.MESSAGES.client.fill, this.handleFillMessage.bind(this));
+        this.onMessage(this.MESSAGES.client.complete, this.handleSolutionSubmissionMessage.bind(this))
     }
 
     private applyValidMove(client: Client, index: number, num: number) {
@@ -108,7 +155,7 @@ export class SudokuRoom extends Room<SudokuState> {
     }
 
     private notifyInvalidStateMove(client: Client) {
-        client.send(this.MESSAGES.server.error, "Game is not running yet.")
+        client.send(this.MESSAGES.server.error, "Game is not running.")
     }
     
     private handleFillMessage(client: Client, data: { index: number, num: number }) {
@@ -128,6 +175,63 @@ export class SudokuRoom extends Room<SudokuState> {
         } else {
             this.notifyInvalidMove(client, index);
         }
+    }
+
+    private async handleMatchEnd() {
+        const winner = this.state.players.get(this.state.winnnerId).id;
+        const playerResults: PlayerResultSchema[] = [];
+        const endTime = Date.now();
+        this.clients.forEach(client => {
+            const clientSessionId = client.sessionId;
+            const result = this.state.winnnerId === clientSessionId ? 'win':'lose'
+            const clientState = this.state.players.get(clientSessionId);
+            const board = clientState.private_board.cells.toArray();
+            const cliendId = clientState.id;
+            const playerResult = new PlayerResultSchema(board, result, cliendId);
+            playerResults.push(playerResult);
+        })
+        const result = new ResultSchema(winner, playerResults, endTime);
+        const matchServer = new SudokuMatchServer(this.state.players, this.state.room_uid);
+        try {
+            const response = await matchServer.finishMatch(result.toJson());
+        }
+        catch (err) {
+            console.log(err)
+        }
+
+    }
+
+    private async handleSolvedBoard(client: Client) {
+        const player_state = this.state.players.get(client.sessionId);
+        this.gameState = GamePhase.MATCH_ENDED;
+        this.state.winnnerId = client.sessionId;
+        this.broadcast(this.MESSAGES.server.match.completed, {
+            winnerId: client.sessionId,
+            playerName: player_state.profile_name
+        });
+
+        await this.handleMatchEnd();
+
+    }
+
+    private handleIncorectSubmission(client: Client) {
+
+    }
+
+    private handleSolutionSubmissionMessage(client: Client) {
+        if(this.gameState !== GamePhase.MATCH_ACTIVE) {
+            this.notifyInvalidStateMove(client)
+            return;
+        }
+        const board = this.state.players.get(client.sessionId).private_board.cells;
+        const isSolved = SudokuUtil.isSudokuSolved(board.toArray());
+        if(isSolved) {
+            this.handleSolvedBoard(client);
+        }
+        else {
+            this.handleIncorectSubmission(client);
+        }
+
     }
 
     private scheduleRoomDisposal() {
@@ -162,7 +266,7 @@ export class SudokuRoom extends Room<SudokuState> {
         this.scheduleRoomDisposal();
     }
 
-    private async handelCreateMatch() {
+    private async handleCreateMatch() {
         try {
             await this.createAndStartMatch();
             return true;
@@ -178,6 +282,7 @@ export class SudokuRoom extends Room<SudokuState> {
 
     private initializeGame() {
         this.setUpInitialBoard();
+        console.log(SudokuGenerator.printBoard(this.state.initial_board.cells.toArray()));
         this.clients.forEach(client => {
             this.initializePlayerBoard(client);
         })
@@ -190,7 +295,7 @@ export class SudokuRoom extends Room<SudokuState> {
         this.state.players.set(client.sessionId, player_state);
         
         if (this.hasReachedMaxClients()) {
-            this.handelCreateMatch();
+            this.handleCreateMatch();
             this.initializeGame();
         }
     }

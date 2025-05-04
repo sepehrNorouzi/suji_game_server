@@ -29,6 +29,19 @@ class SudokuRequestHandler {
         });
     }
 
+    async finishMatch(body: any, uuid: string) {
+        const url = `${this.SERVER_URL}/match/${uuid}/finish/`
+        return await fetch(url, {
+            method: "POST",
+            body: body,
+            headers: {
+                "Content-Type": "application/json",
+                "X-Suji-Server-Key": this.SERVER_KEY
+            }
+            
+        });
+    }
+
 }
 
 export class SudokuMatchServer {
@@ -77,5 +90,15 @@ export class SudokuMatchServer {
         }
         const json = await res.json();
         return json.id;
+    }
+
+    async finishMatch(results: Object) {
+
+        try {
+            const res = await this.requestHandler.finishMatch(JSON.stringify(results), this.match_uuid);
+        }
+        catch (err) {
+            console.log(err)
+        }
     }
 }
