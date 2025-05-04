@@ -9,7 +9,7 @@ class SudokuState extends Schema {
     room_uid: string
     
     @type(Board)
-    initial_board = new Board()
+    initial_board: Board
 
     @type({ map: PlayerState})
     players = new MapSchema<PlayerState>()

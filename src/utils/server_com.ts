@@ -1,12 +1,40 @@
 import PlayerState from "../rooms/schema/PlayerState";
 import { MapSchema } from '@colyseus/schema'
 
-export class SudokuMatchServer {
-    private readonly SERVER_MATCH_CREATE_URL = process.env.SERVER_MATCH_CREATE_URL;
+class SudokuRequestHandler {
     private readonly SERVER_URL = process.env.SERVER_URL;
+    private readonly match_type_name: string = 'Sudoku';
+    private readonly SERVER_KEY = process.env.SERVER_KEY;
+    private readonly SERVER_MATCH_CREATE_URL = process.env.SERVER_MATCH_CREATE_URL;
+
+    async getMatchType() {
+        const url = `${this.SERVER_URL}/match_type/get_by_name/?name=${this.match_type_name}`;
+        return fetch(url, {
+            headers: {
+                "X-Suji-Server-Key": this.SERVER_KEY,
+            }
+        });
+    }
+
+    async createMatch(body: string) {
+        const url = this.SERVER_MATCH_CREATE_URL;
+        return await fetch(url, {
+            method: "POST",
+            body: body,
+            headers: {
+                "Content-Type": "application/json",
+                "X-Suji-Server-Key": this.SERVER_KEY
+            }
+            
+        });
+    }
+
+}
+
+export class SudokuMatchServer {
+    private requestHandler = new SudokuRequestHandler()
     private players: MapSchema<PlayerState>;
     private match_uuid: string;
-    private readonly match_type_name: string = 'Sudoku'
 
     constructor(players: MapSchema<PlayerState>, match_uuid: string) {
         this.players = players;
@@ -18,6 +46,7 @@ export class SudokuMatchServer {
         let match_response = null;
         try{
             const match_type_id = await this.getMatchType();
+            console.log(match_type_id)
             this.players.keys().forEach(element => {
                 players.push(this.players.get(element).id)
             });
@@ -26,15 +55,7 @@ export class SudokuMatchServer {
                 uuid: this.match_uuid,
                 match_type: match_type_id
             }
-            console.log(this.SERVER_MATCH_CREATE_URL);
-            match_response = await fetch(this.SERVER_MATCH_CREATE_URL, {
-                method: "POST",
-                body: JSON.stringify(request_body),
-                headers: {
-                    "Content-Type": "application/json"
-                }
-                
-            });
+            match_response = await this.requestHandler.createMatch(JSON.stringify(request_body))
             if(!match_response.ok) {
                 console.log(await match_response.json())
                 return null;
@@ -49,9 +70,9 @@ export class SudokuMatchServer {
     }
 
     async getMatchType() {
-        const url = `${this.SERVER_URL}/match_type/get_by_name/?name=${this.match_type_name}`
-        const res = await fetch(url);
+        const res = await this.requestHandler.getMatchType()
         if(!res.ok) {
+            console.log(await res.json())
             return null;
         }
         const json = await res.json();
