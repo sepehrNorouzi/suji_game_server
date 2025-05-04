@@ -8,6 +8,9 @@ class PlayerState extends Schema {
     @type(Board)
     private_board: Board
 
+    @type("number")
+    id: number
+
     @type(Board)
     board: Board
     

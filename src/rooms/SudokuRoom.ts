@@ -9,10 +9,12 @@ import { Board } from "./schema/Board";
 import { SudokuGenerator } from "../utils/SudokoGenerator";
 import PlayerState from "./schema/PlayerState";
 import { SudokuUtil } from "../utils/SudokuUtils";
+import { SudokuMatchServer } from "../utils/server_com";
 
 export class SudokuRoom extends Room<SudokuState> {
     maxClients = 2;
     state = new SudokuState();
+    patchRate = 20;
     MESSAGES = {
         client: {
             fill: "fill"
@@ -20,7 +22,9 @@ export class SudokuRoom extends Room<SudokuState> {
 
         server: {
             player_moved: 'player_moved',
-            invalid_move: 'invalid_move'
+            invalid_move: 'invalid_move',
+            match_canceled: 'match_canceled',
+            match_started: 'match_started'
         }
         
     }
@@ -40,6 +44,7 @@ export class SudokuRoom extends Room<SudokuState> {
         player_state.private_board = new Board(this.state.initial_board.cells.toArray())
         player_state.avatar = JSON.stringify(auth.avatar);
         player_state.profile_name = auth.profile_name
+        player_state.id = auth.user_id
         return player_state;
     }
   
@@ -58,20 +63,27 @@ export class SudokuRoom extends Room<SudokuState> {
         })
     }
   
-    onJoin(client: Client, options: any, auth: any) {
+    async onJoin(client: Client, options: any, auth: any) {
         const player_state = this.get_player_state(auth)
         this.state.players.set(client.sessionId, player_state);
         client.view = new StateView();
         client.view.add(player_state);
         if (this.hasReachedMaxClients()) {
             this.state.room_uid = uuidv4();
-            // Notify server
+            const match_server = new SudokuMatchServer(this.state.players, this.state.room_uid);
+            const create_match_response = await match_server.createMatch()
+            if(!create_match_response) {
+                this.broadcast(this.MESSAGES.server.match_canceled);
+                return;
+            }
+            this.lock()
+            this.broadcast(this.MESSAGES.server.match_started);
         }
     }
   
     onLeave(client: Client) {
       console.log("player left:", client.sessionId);
-      this.allowReconnection(client, 20);
+      this.allowReconnection(client, 1);
     }
 
 }
