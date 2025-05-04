@@ -114,6 +114,7 @@ export class SudokuRoom extends Room<SudokuState> {
     private handleFillMessage(client: Client, data: { index: number, num: number }) {
         if(this.gameState !== GamePhase.MATCH_ACTIVE) {
             this.notifyInvalidStateMove(client)
+            return;
         }
         const { index, num } = data;
         const isValidMove = SudokuUtil.isValidMove(
@@ -180,11 +181,12 @@ export class SudokuRoom extends Room<SudokuState> {
         this.clients.forEach(client => {
             this.initializePlayerBoard(client);
         })
+        this.gameState = GamePhase.MATCH_ACTIVE;
 
     }
 
     async onJoin(client: Client, options: any, auth: any) {
-        const player_state = this.createPlayerState(auth)
+        const player_state = this.createPlayerState(auth);
         this.state.players.set(client.sessionId, player_state);
         
         if (this.hasReachedMaxClients()) {
