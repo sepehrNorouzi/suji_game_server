@@ -198,6 +198,9 @@ export class SudokuRoom extends Room<SudokuState> {
         catch (err) {
             console.log(err)
         }
+        finally {
+            this.scheduleRoomDisposal();
+        }
 
     }
 
