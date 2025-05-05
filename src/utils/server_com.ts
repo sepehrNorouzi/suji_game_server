@@ -96,6 +96,7 @@ export class SudokuMatchServer {
 
         try {
             const res = await this.requestHandler.finishMatch(JSON.stringify(results), this.match_uuid);
+            return res;
         }
         catch (err) {
             console.log(err)

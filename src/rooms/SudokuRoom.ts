@@ -17,6 +17,7 @@ export class SudokuRoomConfig {
     static readonly DEFAULT_PATCH_RATE = 20;
     static readonly DEFAULT_DISPOSAL_DELAY = 1000;
     static readonly DEFAULT_RECONNECTION_DELAY = 5;
+    static readonly DEFAULT_MATCH_FINISH_ROOM_DISPOSAL_DELAY = 10000;
 }
 
 enum GamePhase {
@@ -74,6 +75,7 @@ export class SudokuRoom extends Room<SudokuState> {
     private readonly DISPOSAL_DELAY = SudokuRoomConfig.DEFAULT_DISPOSAL_DELAY;
     private readonly RECONNECTION_DELAY = SudokuRoomConfig.DEFAULT_RECONNECTION_DELAY;
     private readonly difficulity: number;
+    private readonly MATCH_FINISH_ROOM_DISPOSAL_DELAY = SudokuRoomConfig.DEFAULT_MATCH_FINISH_ROOM_DISPOSAL_DELAY;
     private gameState: GamePhase;
 
     constructor() {
@@ -98,14 +100,14 @@ export class SudokuRoom extends Room<SudokuState> {
             match: {
                 canceled: 'match_canceled',
                 started: 'match_started',
-                completed: 'completed'
+                completed: 'completed',
+                result: 'result'
             },
             error: 'error'
         }
     };
 
     static async onAuth (token: string, options: any, context: any) {
-        console.log("HERE", process.env.USE_AUTHENTICATION)
         if(process.env.USE_AUTHENTICATION === 'false') {
           return true
         }
@@ -194,12 +196,15 @@ export class SudokuRoom extends Room<SudokuState> {
         const matchServer = new SudokuMatchServer(this.state.players, this.state.room_uid);
         try {
             const response = await matchServer.finishMatch(result.toJson());
+            console.log(response)
+            const match_result = await response.json()
+            this.broadcast(this.MESSAGES.server.match.result, match_result)
         }
         catch (err) {
             console.log(err)
         }
         finally {
-            this.scheduleRoomDisposal();
+            this.scheduleRoomDisposal(this.MATCH_FINISH_ROOM_DISPOSAL_DELAY);
         }
 
     }
@@ -237,12 +242,13 @@ export class SudokuRoom extends Room<SudokuState> {
 
     }
 
-    private scheduleRoomDisposal() {
+    private scheduleRoomDisposal(delay: number | null = null) {
+        const disposalDelay = delay !== null ? delay : this.DISPOSAL_DELAY
         this.clock.setTimeout(() => {
             this.isDisposing = true;
             this.disconnect();
             this._events.emit('dispose');
-        }, this.DISPOSAL_DELAY);
+        }, disposalDelay);
     }
 
     private async createAndStartMatch() {
