@@ -196,7 +196,6 @@ export class SudokuRoom extends Room<SudokuState> {
         const matchServer = new SudokuMatchServer(this.state.players, this.state.room_uid);
         try {
             const response = await matchServer.finishMatch(result.toJson());
-            console.log(response)
             const match_result = await response.json()
             this.broadcast(this.MESSAGES.server.match.result, match_result)
         }
