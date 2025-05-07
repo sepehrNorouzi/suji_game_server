@@ -48,13 +48,18 @@ export class SudokuMatchServer {
     private requestHandler = new SudokuRequestHandler()
     private players: MapSchema<PlayerState>;
     private match_uuid: string;
+    private useServer: boolean;
 
     constructor(players: MapSchema<PlayerState>, match_uuid: string) {
         this.players = players;
         this.match_uuid = match_uuid;
+        this.useServer = process.env.USE_SERVER === 'true' || process.env.NODE_ENV !== "development";
     }
 
     async createMatch() {
+        if(!this.useServer) {
+            return {}
+        }
         const players: number[] = []
         let match_response = null;
         try{
@@ -83,6 +88,9 @@ export class SudokuMatchServer {
     }
 
     async getMatchType() {
+        if(!this.useServer) {
+            return {}
+        }
         const res = await this.requestHandler.getMatchType()
         if(!res.ok) {
             console.log(await res.json())
@@ -93,7 +101,9 @@ export class SudokuMatchServer {
     }
 
     async finishMatch(results: Object) {
-
+        if(!this.useServer) {
+            return Object()
+        }
         try {
             const res = await this.requestHandler.finishMatch(JSON.stringify(results), this.match_uuid);
             return res;
